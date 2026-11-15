@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Ferrailleurs - Plateau Hexagonal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/game.css">
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>Ferrailleurs — Plateau Hexagonal</h1>
+      <div class="game-info"><span>Manche : <strong id="round-num">1</strong></span><span>Pli : <strong id="trick-num">1/5</strong></span><span>Couleur Pli : <strong id="lead-suit">-</strong></span></div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button id="btn-end-turn" class="hidden">Valider</button>
+    </div>
+  </header>
+
+  <div class="banner" id="phase-banner">Chargement...</div>
+
+  <div class="main-layout">
+    <div class="sidebar">
+      <div>
+        <div class="section-title">Joueurs</div>
+        <div id="players-summary"></div>
+      </div>
+      <div>
+        <div class="section-title">Rivière Objectifs (Draft)</div>
+        <div class="river-container" id="objective-river"></div>
+      </div>
+      <div>
+        <div class="section-title">Tes Objectifs Validés / En cours</div>
+        <div class="my-objs-container" id="my-objectives"></div>
+      </div>
+      <div>
+        <div class="section-title">Journal de Bord</div>
+        <div id="game-log"></div>
+      </div>
+    </div>
+
+    <div class="center-board">
+      <div class="section-title" style="align-self: flex-start;">Plateau Hexagonal (Rayon 2)</div>
+      <svg id="hex-svg" viewBox="-160 -140 320 280">
+        <g id="hex-grid-group"></g>
+      </svg>
+      <div id="action-hint" style="color: #ffd166; font-size: 0.85rem; margin-top: 8px; min-height: 20px; font-weight: bold;"></div>
+      <div id="action-options" class="action-options"></div>
+      <div style="margin-top: 12px; width: 100%;">
+        <div class="section-title">Cartes jouées dans le pli</div>
+        <div class="cards-row" id="trick-cards" style="min-height: 120px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-panel">
+    <div>
+      <div class="section-title">Ta production (2 familles max, cartes empilables) — Chaque carte : un tap à 45°, un tap à 90°</div>
+      <div class="cards-row" id="my-prod"></div>
+      <div id="resource-count" class="resource-count"></div>
+    </div>
+    <div>
+      <div class="section-title">Ta Main</div>
+      <button id="btn-face-down" class="hidden">Jouer une carte face cachée</button>
+      <div class="cards-row" id="my-hand"></div>
+    </div>
+  </div>
+
+  <script src="src/data/cards.js" defer></script>
+  <script src="src/data/objectives.js" defer></script>
+  <script src="src/game/state.js" defer></script>
+  <script src="src/game/board.js" defer></script>
+  <script src="src/game/engine.js" defer></script>
+  <script src="src/ui/render.js" defer></script>
+  <script src="src/main.js" defer></script>
+</body>
+</html>
+
