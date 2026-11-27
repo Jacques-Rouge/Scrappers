@@ -4,75 +4,77 @@
   <meta charset="UTF-8">
   <title>Ferrailleurs - Plateau Hexagonal</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/render/cards.css">
+  <link rel="stylesheet" href="src/render/objectives.css">
   <link rel="stylesheet" href="styles/game.css">
 </head>
 <body>
 
-  <header>
-    <div>
+  <div class="game-shell">
+    <header class="game-header">
+      <div class="game-brand">
       <h1>Ferrailleurs — Plateau Hexagonal</h1>
       <div class="game-info"><span>Manche : <strong id="round-num">1</strong></span><span>Pli : <strong id="trick-num">1/5</strong></span><span>Couleur Pli : <strong id="lead-suit">-</strong></span></div>
-    </div>
-    <div style="display:flex; gap:10px; align-items:center;">
+      </div>
+      <div class="header-actions">
       <button id="btn-end-turn" class="hidden">Valider</button>
-    </div>
-  </header>
+      </div>
+    </header>
 
-  <div class="banner" id="phase-banner">Chargement...</div>
+    <div class="banner" id="phase-banner">Chargement...</div>
 
-  <div class="main-layout">
-    <div class="sidebar">
-      <div>
-        <div class="section-title">Joueurs</div>
-        <div id="players-summary"></div>
-      </div>
-      <div>
-        <div class="section-title">Rivière Objectifs (Draft)</div>
-        <div class="river-container" id="objective-river"></div>
-      </div>
-      <div>
-        <div class="section-title">Tes Objectifs Validés / En cours</div>
-        <div class="my-objs-container" id="my-objectives"></div>
-      </div>
-      <div>
-        <div class="section-title">Journal de Bord</div>
-        <div id="game-log"></div>
-      </div>
-    </div>
+    <main class="main-layout">
+      <aside class="sidebar">
+        <section class="hand-panel right-bar">
+          <div class="zone-heading"><div class="section-title">Ta main</div><button id="btn-face-down" class="hidden">Jouer une carte face cachée</button></div>
+          <div class="cards-row hand-row hand-grid" id="my-hand"></div>
+        </section>
+        <section class="trick-area right-bar">
+          <div class="section-title">Déroulé du pli</div>
+          <div class="cards-row trick-cards" id="trick-cards"></div>
+        </section>
+        <section class="production-panel right-bar">
+          <div class="zone-heading"><div><div class="section-title">Production</div><small>Symboles disponibles</small></div><div id="resource-count" class="resource-count"></div></div>
+          <div class="production-row" id="my-prod"></div>
+        </section>
+      </aside>
 
-    <div class="center-board">
-      <div class="section-title" style="align-self: flex-start;">Plateau Hexagonal (Rayon 2)</div>
-      <svg id="hex-svg" viewBox="-160 -140 320 280">
-        <g id="hex-grid-group"></g>
-      </svg>
-      <div id="action-hint" style="color: #ffd166; font-size: 0.85rem; margin-top: 8px; min-height: 20px; font-weight: bold;"></div>
-      <div id="action-options" class="action-options"></div>
-      <div style="margin-top: 12px; width: 100%;">
-        <div class="section-title">Cartes jouées dans le pli</div>
-        <div class="cards-row" id="trick-cards" style="min-height: 120px;"></div>
-      </div>
-    </div>
+      <section class="center-board">
+        <div id="action-hint" class="action-hint"></div>
+        <div class="board-table">
+          <div class="board-glow"></div>
+          <svg id="hex-svg" viewBox="-170 -190 340 380" role="img" aria-label="Plateau hexagonal">
+            <g id="hex-grid-group"></g>
+          </svg>
+        </div>
+        <div id="action-options" class="action-options"></div>
+      </section>
+    </main>
+
+    <section class="objective-band river-band">
+      <div class="objective-band-label"><div class="section-title">Objectifs disponibles</div></div>
+      <div class="objective-strip river-container" id="objective-river"></div>
+    </section>
+    <section class="objective-band held-band">
+      <div class="objective-band-label"><div class="section-title">Tes objectifs</div><details class="log-panel"><summary>Journal</summary><div id="game-log"></div></details></div>
+      <div class="objective-strip my-objs-container" id="my-objectives"></div>
+    </section>
+
   </div>
 
-  <div class="bottom-panel">
-    <div>
-      <div class="section-title">Ta production (2 familles max, cartes empilables) — Chaque carte : un tap à 45°, un tap à 90°</div>
-      <div class="cards-row" id="my-prod"></div>
-      <div id="resource-count" class="resource-count"></div>
-    </div>
-    <div>
-      <div class="section-title">Ta Main</div>
-      <button id="btn-face-down" class="hidden">Jouer une carte face cachée</button>
-      <div class="cards-row" id="my-hand"></div>
-    </div>
-  </div>
-
+  <script src="src/render/common.js" defer></script>
+  <script src="src/render/objective-renderer.js" defer></script>
+  <script src="src/data/card-art.js" defer></script>
   <script src="src/data/cards.js" defer></script>
+  <script src="src/data/objective-schema.js" defer></script>
   <script src="src/data/objectives.js" defer></script>
+  <script src="assets/objectives/catalog.js" defer></script>
   <script src="src/game/state.js" defer></script>
   <script src="src/game/board.js" defer></script>
+  <script src="src/game/objectives.js" defer></script>
   <script src="src/game/engine.js" defer></script>
   <script src="src/ui/render.js" defer></script>
+  <script src="src/render/card-studio.js" defer></script>
   <script src="src/main.js" defer></script>
 </body>
 </html>

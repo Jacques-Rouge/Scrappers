@@ -4,33 +4,52 @@ Prototype navigateur d'un jeu à 4 joueurs sur plateau hexagonal.
 
 ## Lancer
 
-Ouvrir `index.html` dans un navigateur. La maquette visuelle des cartes se trouve dans `preview/cards.html`.
+Ouvrir `index.html` dans un navigateur. Les pages d'outils sont `preview/cards.html`, `preview/objectives.html` (galerie) et `preview/objective.html` (builder). Elles partagent les définitions de jeu et les renderers avec l'application.
+
+## Organisation du code
+
+Le dépôt est organisé en quatre couches. Les pages restent des scripts navigateur classiques pour conserver le lancement direct en `file://`.
+
+### Règles et contenu
+
+- `src/data/cards.js` : familles, ressources et actions des cartes, paquet et variantes de règles.
+- `src/data/card-art.js` : vocabulaire illustré des cartes utilisé par l'atelier d'aperçu.
+- `src/data/objectives.js` : objectifs intégrés au prototype.
+- `src/data/objective-schema.js` : format canonique et validation partagés par le moteur et l'atelier.
+- `assets/objectives/*.json` : définitions exportées par l'atelier; à chaque export, le catalogue moteur `assets/objectives/catalog.js` est régénéré depuis ces JSON.
+- `src/game/` : état, géométrie du plateau, résolution des actions et règles de validation des motifs (`objectives.js`).
+
+### Rendu
+
+- `src/render/common.js` : primitives communes pour afficher les cartes et motifs d'objectif, ainsi que l'export PNG.
+- `src/render/card-studio.js` et `src/render/cards.css` : même rendu de face et mêmes styles pour les cartes du jeu et l'aperçu.
+- `src/render/objective-renderer.js` et `src/render/objectives.css` : rendu partagé des objectifs en format UI et en format carte.
+- `src/ui/render.js` : assemblage de l'interface de partie à partir de l'état du jeu et du renderer commun.
+- `styles/game.css` : styles de l'interface.
+
+### Outils et fichiers produits
+
+- `preview/cards.html` : structure de la page d'atelier.
+- `preview/cards.css` : styles de l'atelier.
+- `preview/cards.js` : interactions et export ZIP/PNG.
+- `preview/cards.html` charge les règles de `src/data/cards.js`, les exemples de `src/data/card-art.js`, puis le renderer `src/render/card-studio.js`.
+- `preview/objective.html` : structure de l'atelier d'objectifs.
+- `preview/objective.css` et `preview/objective.js` : styles, composition et export PNG/JSON de l'atelier.
+- `preview/objectives.html` : galerie de tous les objectifs, côte à côte en format carte et en format UI; elle lit les mêmes données que le jeu.
+- `assets/objectives/catalog.js` : pont de chargement classique utilisé par le jeu pour rester compatible avec l'ouverture directe de `index.html` en `file://`.
+- `assets/cards/` : faces de carte utilisées par le jeu.
+- `assets/objectives/` : illustrations et définitions JSON d'objectif.
+- `assets/token/`, `assets/numbers/`, `assets/divers/` : symboles et nombres réutilisés par les rendus.
 
 ## Boucle de jeu actuelle
 
-- Chaque manche distribue 7 cartes à chacun des 4 joueurs (les 2 cartes restantes ne sont pas utilisées).
-- Chaque joueur choisit 2 cartes qui restent dans sa production pour la manche; les 5 autres cartes forment sa main.
-- La production contient au plus 2 familles. Les cartes d'une même famille s'empilent et comptent toutes séparément; chaque carte s'engage deux fois au maximum : 45° puis 90°. Chaque engagement produit un seul symbole choisi parmi ceux de la carte.
-- Une action à coût commence par le choix du coût, puis les cartes de production sont engagées pour le payer immédiatement. Énergie et Fer ne sont jamais stockés. L'action PROD pose d'abord la carte jouée, puis fait engager une carte de la zone PROD; le symbole produit est perdu s'il ne paie aucun coût.
-- Une manche comporte 5 plis. Le premier joueur pose une carte visible et fixe la couleur du pli.
-- Les Humains de départ commencent sur le bord du plateau. Les Humains ajoutés ensuite se posent sur une case libre adjacente à l'un de tes Humains.
-- Les autres jouent une carte visible pour son effet, ou la posent face cachée pour copier l'effet de la couleur menée.
-- Une carte visible de la couleur menée, avec une valeur au moins égale à la première carte, débloque aussi l'effet secret.
-- Après chaque pli, 5 objectifs sont révélés. Les joueurs en choisissent un dans l'ordre croissant de la valeur jouée; le dernier choisit entre les 2 derniers.
+- Chaque manche distribue 7 cartes à chacun des 4 joueurs. Deux cartes restent en production; les cinq autres sont jouées en cinq plis.
+- La production contient au plus 2 familles; chaque carte peut produire deux fois, en s'engageant à 45° puis à 90°.
+- Énergie et Fer ne sont pas stockés. Les coûts sont payés en engageant immédiatement les cartes de production.
+- Les humains occupent les cases en groupes. Les grilles peuvent s'empiler; les forts occupent seuls leur case.
+- Les objectifs sont décrits par des motifs axiaux allié/ennemi; le moteur les évalue sur le plateau, rotations comprises.
+- Après chaque pli, les motifs atteints sont validés et défaussés. La main d'objectifs est plafonnée à quatre.
 
-Les actions normales des cinq familles sont structurées dans `src/data/cards.js`; `preview/cards.html` affiche les mêmes définitions. `CARD_VARIANTS` permet de surcharger les actions, symboles de production ou visuels pour une valeur précise (ex. `energie:1`). Les images finales des 30 cartes sont dans `assets/cards/`.
+## Convention pour les changements
 
-Les effets secrets restent à définir. Les objectifs et la fin de partie sont provisoires; les bots sont simples pour permettre de jouer la boucle en solo.
-
-## Organisation
-
-- `index.html` : interface et chargement des scripts.
-- `styles/game.css` : styles.
-- `src/data/cards.js` : familles et paquet de 30 cartes.
-- `assets/cards/` : images des 30 cartes (type_valeur).
-- `src/data/objectives.js` : objectifs provisoires et vérifications.
-- `src/game/state.js` : état courant.
-- `src/game/board.js` : géométrie hexagonale.
-- `src/game/engine.js` : boucle de jeu, effets et bots.
-- `src/ui/render.js` : affichage.
-- `preview/cards.html` : maquette des cartes et export PNG.
+Les nouvelles règles doivent être ajoutées aux données de `src/data/`, puis résolues dans `src/game/`. Le rendu et les chemins d'export restent dans `src/render/` ou `preview/`; l'interface de partie ne doit pas devenir une seconde source de règles. Les prochaines étapes naturelles sont d'isoler le contrôleur de partie de `engine.js`, puis de faire utiliser au compositeur d'objectifs le même renderer de motifs que l'interface.

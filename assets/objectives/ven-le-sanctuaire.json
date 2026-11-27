@@ -1,0 +1,20 @@
+{
+  "id": "ven-le-sanctuaire",
+  "family": "veneration",
+  "theme": "ressource",
+  "title": "Le sanctuaire",
+  "pts": 1,
+  "pattern": {
+    "version": 1,
+    "criterion": "sup_eq",
+    "cells": [
+      {
+        "q": 3,
+        "r": -2,
+        "token": "grid",
+        "owner": "ally",
+        "count": 3
+      }
+    ]
+  }
+}

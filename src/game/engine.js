@@ -1,12 +1,13 @@
 function initGame() {
-  initHexBoard(2);
+  initHexBoard(5, 4);
   state.players = [
     { id: 0, name: "Toi", isBot: false, score: 0, hand: [], prod: [], objectives: [], pieces: { human: 1, weapon: 0, grid: 0 } },
     { id: 1, name: "Bot Nord", isBot: true, score: 0, hand: [], prod: [], objectives: [], pieces: { human: 1, weapon: 0, grid: 0 } },
     { id: 2, name: "Bot Est", isBot: true, score: 0, hand: [], prod: [], objectives: [], pieces: { human: 1, weapon: 0, grid: 0 } },
     { id: 3, name: "Bot Ouest", isBot: true, score: 0, hand: [], prod: [], objectives: [], pieces: { human: 1, weapon: 0, grid: 0 } },
   ];
-  state.objectiveDeck = shuffle(Array.from({ length: 4 }, (_, copy) => OBJECTIVES_DATA.map(o => ({ ...o, id: `${o.id}_${copy}` }))).flat());
+  const objectiveCatalog = normalizeObjectiveCatalog([...OBJECTIVES_DATA, ...(window.GENERATED_OBJECTIVES || [])]);
+  state.objectiveDeck = shuffle(Array.from({ length: 5 }, (_, copy) => objectiveCatalog.map(o => ({ ...o, id: `${o.id}_${copy}` }))).flat());
   state.objectiveRiver = [];
   state.players.forEach(p => { p.pieces.human = 0; spawnOnRandomHexEdge(p.id, "HUMAN"); });
   startRound();
@@ -31,11 +32,7 @@ function startRound() {
 }
 
 function botSetupProd(bot) {
-  const picked = [];
-  for (const card of shuffle([...bot.hand])) {
-    if (picked.length === 2) break;
-    if (!picked.some(c => c.type === card.type) || new Set(picked.map(c => c.type)).size < 2) picked.push(card);
-  }
+  const picked = shuffle([...bot.hand]).slice(0, 2);
   bot.prod = picked.map(card => ({ card, rotation: 0 }));
   bot.hand = bot.hand.filter(c => !picked.some(p => p.id === c.id));
 }
@@ -68,21 +65,12 @@ function beginTrick() {
 function rotateProdSlot(slotIndex) {
   const p = state.players[0], slot = p.prod[slotIndex];
   if (!slot) return;
-  if (state.phase === "OVERWRITE_PROD" && state.pendingCardToProd) {
-    const overwrittenType = slot.card.type;
-    p.prod = p.prod.filter(item => item.card.type !== overwrittenType);
-    p.prod.push({ card: state.pendingCardToProd, rotation: 0 });
-    state.pendingCardToProd = null;
-    const follow = state.actionMode?.type;
-    if (follow === "OVERWRITE_THEN_TAP") {
-      state.actionMode = { type: "CHOOSE_PROD_TO_TAP" };
-      state.phase = "ACTION_RESOLVE";
-      render();
-    }
-    else finishHumanCardAction();
+  if (state.actionMode?.type === "CHOOSE_PROD_TO_TAP") { tapProdForEffect(slotIndex); return; }
+  if (state.phase === "PAY_RESOURCES" && state.paymentContext) {
+    const options = getPaymentTapOptions(state.paymentContext).filter(option => option.slotIndex === slotIndex);
+    if (options.length === 1) tapProductionForPayment(slotIndex, options[0].resource);
     return;
   }
-  if (state.actionMode?.type === "CHOOSE_PROD_TO_TAP") { tapProdForEffect(slotIndex); return; }
   if (state.actionMode?.type === "UNTAP_PROD") {
     if (slot.rotation === 0) return;
     slot.rotation = 0; state.actionMode.remaining--;
@@ -105,13 +93,31 @@ function getProductionResourceOptions(slot) {
   return [...options];
 }
 
+function getProductionSymbolCount(slot) {
+  const symbols = slot.card.productionSymbols || CARD_TYPES[slot.card.type].prodSymbols;
+  return Math.max(1, symbols.length);
+}
+
+function getProductionUsesLeft(slot) {
+  const total = getProductionSymbolCount(slot);
+  const used = slot.rotation === 45 ? 1 : slot.rotation >= 90 ? total : 0;
+  return Math.max(0, total - used);
+}
+
+function getNextProductionRotation(slot) {
+  const remaining = getProductionUsesLeft(slot);
+  if (remaining <= 0) return slot.rotation;
+  const used = getProductionSymbolCount(slot) - remaining + 1;
+  return used >= getProductionSymbolCount(slot) ? 90 : 45;
+}
+
 function tapProductionSlot(player, slotIndex, resourceChoice = null) {
   const slot = player.prod[slotIndex];
-  if (!slot || slot.rotation >= 90) { log("Cette carte de production est déjà engagée."); return; }
+  if (!slot || getProductionUsesLeft(slot) <= 0) { log("Cette carte de production est déjà engagée."); return; }
   const options = getProductionResourceOptions(slot);
   const resource = resourceChoice || options[0];
   if (!options.includes(resource)) return;
-  slot.rotation = slot.rotation === 0 ? 45 : 90;
+  slot.rotation = getNextProductionRotation(slot);
   return resource;
 }
 
@@ -219,7 +225,8 @@ function scienceActionsFor(player, familyActions) {
 function actionLabel(action) {
   const labels = {
     production_tap: "Envoyer cette carte en prod, puis engager une carte",
-    move_combat: "Déplacement et combat",
+    tower_attack: "Tirer avec un fort sur une case adjacente",
+    move_and_shoot: "Déplacer un Humain d’une case, puis tirer avec un fort",
     pay_resource_place_human: "Payer 1 Énergie ou 1 Fer pour poser un Humain",
     pay_energy_place_human: "Payer 1 Énergie pour poser un Humain",
     pay_fer_place_human: "Payer 1 Fer pour poser un Humain",
@@ -236,7 +243,7 @@ function actionLabel(action) {
 function getTapActivations(player) {
   const activations = [];
   player.prod.forEach((slot, slotIndex) => {
-    const usesLeft = slot.rotation === 0 ? 2 : slot.rotation === 45 ? 1 : 0;
+    const usesLeft = getProductionUsesLeft(slot);
     const resourceOptions = getProductionResourceOptions(slot);
     for (let use = 0; use < usesLeft; use++) activations.push({ slotIndex, resourceOptions });
   });
@@ -269,13 +276,13 @@ function getPaymentTapOptions(context) {
   const bills = context.bill ? [context.bill] : context.alternatives;
   const options = [];
   player.prod.forEach((slot, slotIndex) => {
-    if (slot.rotation >= 90) return;
+    if (getProductionUsesLeft(slot) <= 0) return;
     for (const resource of getProductionResourceOptions(slot)) {
       for (const bill of bills) {
         if ((bill[resource] || 0) <= 0) continue;
         const billAfter = { ...bill, [resource]: bill[resource] - 1 };
         const remaining = Object.values(billAfter).every(amount => amount <= 0);
-        const simulated = { ...player, prod: player.prod.map((item, i) => i === slotIndex ? { ...item, rotation: item.rotation === 0 ? 45 : 90 } : { ...item }) };
+        const simulated = { ...player, prod: player.prod.map((item, i) => i === slotIndex ? { ...item, rotation: getNextProductionRotation(item) } : { ...item }) };
         if (remaining || findPaymentPlan(simulated, billAfter)) options.push({ slotIndex, resource, billAfter });
       }
     }
@@ -302,6 +309,7 @@ function startPayment(player, bills, action, interactive) {
     bill: bills.length === 1 ? { ...bills[0] } : null,
     alternatives: bills.length > 1 ? bills.map(bill => ({ ...bill })) : null,
     action,
+    initialRotations: player.prod.map(slot => slot.rotation),
   };
   state.phase = "PAY_RESOURCES";
   render();
@@ -311,7 +319,8 @@ function canPlayerUseAction(action, player = state.players[0]) {
   if (action.id === "pay_resource_place_human") return canPayWithProduction(player, [{ energie: 1 }, { ressource: 1 }]);
   if (action.id === "pay_energy_place_human") return canPayWithProduction(player, [{ energie: 1 }]);
   if (action.id === "pay_fer_place_human") return canPayWithProduction(player, [{ ressource: 1 }]);
-  if (action.id.startsWith("pay_energy_and_fer")) return canPayWithProduction(player, [{ energie: 1, ressource: 1 }]);
+  if (action.id === "pay_energy_and_fer_place_grid") return canPayWithProduction(player, [{ energie: 1, ressource: 1 }]) && canPlaceGrid();
+  if (action.id === "pay_energy_and_fer_create_weapon") return canPayWithProduction(player, [{ energie: 1, ressource: 1 }]) && canPlaceWeapon(player.id);
   return true;
 }
 
@@ -326,8 +335,9 @@ function offerActionChoices(player, actions, interactive) {
     state.phase = "CHOOSE_ACTION";
     render();
   } else {
-    const action = actions.find(a => botCanUseAction(player, a)) || actions[0];
-    performCardAction(player, action, false);
+    const action = actions.find(a => botCanUseAction(player, a));
+    if (action) performCardAction(player, action, false);
+    else { checkAllObjectives(); advancePlayer(); }
   }
 }
 
@@ -338,9 +348,25 @@ function botCanUseAction(player, action) {
 function chooseCardAction(index) {
   if (state.phase !== "CHOOSE_ACTION") return;
   const action = state.actionChoices[index];
-  if (!action) return;
+  if (!action || !canPlayerUseAction(action)) return;
   state.actionChoices = [];
   performCardAction(state.players[0], action, true);
+}
+
+function skipCurrentAction() {
+  if (!["CHOOSE_ACTION", "ACTION_RESOLVE", "PAY_RESOURCES"].includes(state.phase)) return;
+  if (state.actionMode?.type === "DISPLACE_HUMANS") return;
+  if (state.phase === "PAY_RESOURCES") {
+    const initialRotations = state.paymentContext?.initialRotations;
+    if (initialRotations) state.players[0].prod.forEach((slot, index) => { slot.rotation = initialRotations[index]; });
+    state.paymentContext = null;
+  }
+  state.actionChoices = [];
+  state.actionQueue = null;
+  state.pendingSecretActions = [];
+  state.actionMode = null;
+  log("Carte ignorée : aucun effet résolu.");
+  finishHumanCardAction();
 }
 
 function chooseSwapProdOwn(index) {
@@ -350,11 +376,7 @@ function chooseSwapProdOwn(index) {
 }
 
 function canSwapProdCards(playerA, indexA, playerB, indexB) {
-  const cardA = playerA.prod[indexA], cardB = playerB.prod[indexB];
-  if (!cardA || !cardB) return false;
-  const typesA = new Set(playerA.prod.map((slot, i) => i === indexA ? cardB.card.type : slot.card.type));
-  const typesB = new Set(playerB.prod.map((slot, i) => i === indexB ? cardA.card.type : slot.card.type));
-  return typesA.size <= 2 && typesB.size <= 2;
+  return !!playerA.prod[indexA] && !!playerB.prod[indexB];
 }
 
 function chooseSwapProdTarget(playerId, slotIndex) {
@@ -363,10 +385,6 @@ function chooseSwapProdTarget(playerId, slotIndex) {
   const own = player.prod[state.actionMode.ownIndex];
   const other = opponent?.prod[slotIndex];
   if (!own || !other) return;
-  if (!canSwapProdCards(player, state.actionMode.ownIndex, opponent, slotIndex)) {
-    log("Cet échange ferait dépasser la limite de deux familles en production.");
-    return;
-  }
   player.prod[state.actionMode.ownIndex] = other;
   opponent.prod[slotIndex] = own;
   log(`Carte de production échangée avec ${opponent.name}.`);
@@ -374,19 +392,7 @@ function chooseSwapProdTarget(playerId, slotIndex) {
 }
 
 function placeCardInProduction(player, card, interactive) {
-  const families = new Set(player.prod.map(slot => slot.card.type));
-  if (families.has(card.type) || families.size < 2) player.prod.push({ card, rotation: 0 });
-  else if (interactive) {
-    state.pendingCardToProd = card;
-    state.phase = "OVERWRITE_PROD";
-    log("La production contient déjà deux familles : choisis une famille entière à remplacer.");
-    render();
-    return false;
-  } else {
-    const replacedType = player.prod[0]?.card.type;
-    player.prod = player.prod.filter(slot => slot.card.type !== replacedType);
-    player.prod.push({ card, rotation: 0 });
-  }
+  player.prod.push({ card, rotation: 0 });
   return true;
 }
 
@@ -394,8 +400,7 @@ function performCardAction(player, action, interactive) {
   const card = state.pendingActionCard;
   const id = action.id;
   if (id === "production_tap") {
-    const placed = placeCardInProduction(player, card, interactive);
-    if (!placed) { state.actionMode = { type: "OVERWRITE_THEN_TAP" }; return; }
+    placeCardInProduction(player, card, interactive);
     if (interactive) { state.actionMode = { type: "CHOOSE_PROD_TO_TAP" }; state.phase = "ACTION_RESOLVE"; render(); }
     else {
       const idx = player.prod.findIndex(slot => slot.rotation < 90);
@@ -404,19 +409,21 @@ function performCardAction(player, action, interactive) {
       checkAllObjectives(); advancePlayer();
     }
   } else if (id === "science_production") {
-    const placed = placeCardInProduction(player, card, interactive);
-    if (!placed) { state.actionMode = { type: "OVERWRITE_QUEUE" }; return; }
+    placeCardInProduction(player, card, interactive);
     if (interactive) finishHumanCardAction();
     else { checkAllObjectives(); advancePlayer(); }
-  } else if (id === "move_combat") {
-    if (interactive) { state.actionMode = { type: "MOVE_ATTACK" }; state.phase = "ACTION_RESOLVE"; render(); }
-    else { botMoveAndAttack(player.id); checkAllObjectives(); advancePlayer(); }
+  } else if (id === "tower_attack") {
+    if (interactive) { state.actionMode = { type: "ATTACK_FROM_TOWER" }; state.phase = "ACTION_RESOLVE"; render(); }
+    else { botFortShoot(player.id); checkAllObjectives(); advancePlayer(); }
+  } else if (id === "move_and_shoot") {
+    if (interactive) { state.actionMode = { type: "MOVE_HUMAN" }; state.phase = "ACTION_RESOLVE"; render(); }
+    else { botMoveAndShoot(player.id); checkAllObjectives(); advancePlayer(); }
   } else if (id === "pay_energy_place_human" || id === "pay_fer_place_human" || id === "pay_resource_place_human") {
     const bills = id === "pay_fer_place_human" ? [{ ressource: 1 }] : id === "pay_energy_place_human" ? [{ energie: 1 }] : [{ energie: 1 }, { ressource: 1 }];
     startPayment(player, bills, action, interactive);
   } else if (id === "sacrifice_human_untap_two") {
     if (interactive) { state.actionMode = { type: "SACRIFICE_HUMAN" }; state.phase = "ACTION_RESOLVE"; render(); }
-    else { const human = [...state.board.values()].find(cell => cell.human === player.id); if (human) human.human = null; player.prod.slice(0, 2).forEach(slot => { slot.rotation = 0; }); checkAllObjectives(); advancePlayer(); }
+    else { const human = [...state.board.values()].find(cell => getHumanOwners(cell).includes(player.id)); if (human) { addHumanCorpse(human, player.id); removeHuman(human, player.id); player.pieces.human = Math.max(0, player.pieces.human - 1); } player.prod.slice(0, 2).forEach(slot => { slot.rotation = 0; }); checkAllObjectives(); advancePlayer(); }
   } else if (id === "pay_energy_and_fer_place_grid" || id === "pay_energy_and_fer_create_weapon") {
     startPayment(player, [{ energie: 1, ressource: 1 }], action, interactive);
   } else if (id === "science_swap_production") {
@@ -444,14 +451,13 @@ function executePaidAction(player, action, interactive) {
     else { spawnAdjacentHuman(player.id); checkAllObjectives(); advancePlayer(); }
   } else if (action.id === "pay_energy_and_fer_place_grid") {
     if (interactive) { state.actionMode = { type: "BUILD" }; state.phase = "ACTION_RESOLVE"; render(); }
-    else { spawnOnRandomHexEdge(player.id, "TOWER"); checkAllObjectives(); advancePlayer(); }
+    else if (!spawnOnRandomHexEdge(player.id, "TOWER", true)) { checkAllObjectives(); advancePlayer(); }
   } else if (action.id === "pay_energy_and_fer_create_weapon") {
-    player.pieces.weapon++;
-    if (interactive) { state.actionMode = { type: "ATTACH_WEAPON" }; state.phase = "ACTION_RESOLVE"; render(); }
+    if (interactive) { state.actionMode = { type: "PLACE_WEAPON" }; state.phase = "ACTION_RESOLVE"; render(); }
     else {
-      const human = [...state.board.values()].find(cell => cell.human === player.id && cell.weapon !== player.id);
-      if (human) human.weapon = player.id;
-      checkAllObjectives(); advancePlayer();
+      const destination = [...state.board.values()].find(cell => cell.weapon === null && canEvacuateHumansFrom(cell) && isAdjacentToPlayerHuman(cell.q, cell.r, player.id));
+      if (destination) { destination.weapon = player.id; player.pieces.weapon++; relocateHumansAutomatically(destination, true); }
+      else { checkAllObjectives(); advancePlayer(); }
     }
   }
 }
@@ -469,37 +475,26 @@ function applyBotScienceActions(player, card, actions) {
   checkAllObjectives(); advancePlayer();
 }
 
-function botAttack(player, type) {
-  const cells = [...state.board.values()].filter(c => type === "energie" ? c.human !== null && c.human !== player.id : c.tower > 0);
-  if (!cells.length) return;
-  if (type === "energie") cells[0].human = null; else cells[0].tower--;
-}
-
-function botMove(pId) {
-  const from = [...state.board.values()].find(c => c.human === pId);
-  if (!from) { spawnOnRandomHexEdge(pId, "HUMAN"); return; }
-  const to = HEX_DIRS.map(d => state.board.get(`${from.q + d.q},${from.r + d.r}`)).find(c => c && c.human === null);
-  if (to) { to.weapon = from.weapon; from.human = null; from.weapon = null; to.human = pId; }
-}
-
-function botMoveAndAttack(pId) {
-  botMove(pId);
-  const from = [...state.board.values()].find(c => c.human === pId);
-  if (!from) return;
-  const targets = [...state.board.values()].filter(cell => cell.human !== null && cell.human !== pId && canAttackFrom(from, cell));
+function botFortShoot(pId) {
+  const towers = [...state.board.values()].filter(cell => cell.weapon === pId);
+  const targets = towers.flatMap(tower => [...state.board.values()]
+    .filter(cell => getHumanOwners(cell).some(owner => owner !== pId) && hexDistance(tower, cell) === 1));
   if (targets.length) {
-    const targetPlayer = targets[0].human;
-    if (targets[0].weapon !== null) state.players[targetPlayer].pieces.weapon = Math.max(0, state.players[targetPlayer].pieces.weapon - 1);
-    targets[0].human = null; targets[0].weapon = null;
+    const targetPlayer = getHumanOwners(targets[0]).find(owner => owner !== pId);
+    addHumanCorpse(targets[0], targetPlayer);
+    removeHuman(targets[0], targetPlayer);
     state.players[targetPlayer].pieces.human = Math.max(0, state.players[targetPlayer].pieces.human - 1);
   }
 }
 
-function canAttackFrom(from, target) {
-  const dq = target.q - from.q, dr = target.r - from.r;
-  const distance = (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
-  if (from.weapon !== null) return HEX_DIRS.some(d => d.q * 2 === dq && d.r * 2 === dr);
-  return distance === 1;
+function botMoveAndShoot(pId) {
+  const source = [...state.board.values()].find(cell => getHumanOwners(cell).includes(pId) && getHumanMoveDestinations(cell).length);
+  if (!source) return;
+  const destination = getHumanMoveDestinations(source)[0];
+  removeHuman(source, pId);
+  addHuman(destination, pId);
+  log(`${state.players[pId].name} déplace un Humain d’une case.`);
+  botFortShoot(pId);
 }
 
 function advancePlayer() {
@@ -537,45 +532,127 @@ function onHexClick(q, r) {
   if (state.phase !== "ACTION_RESOLVE" || !state.actionMode) return;
   const cell = state.board.get(`${q},${r}`), mode = state.actionMode;
   if (!cell) return;
-  if (mode.type === "SPAWN_HUMAN" && cell.human === null && isAdjacentToPlayerHuman(q, r, 0)) {
-    cell.human = 0; state.players[0].pieces.human++; finishHumanCardAction();
-  } else if (mode.type === "BUILD" && cell.tower < 3) {
-    cell.tower++; state.players[0].pieces.grid++; finishHumanCardAction();
-  } else if (mode.type === "SACRIFICE_HUMAN" && cell.human === 0) {
-    if (cell.weapon !== null) state.players[0].pieces.weapon = Math.max(0, state.players[0].pieces.weapon - 1);
-    cell.human = null; state.players[0].pieces.human = Math.max(0, state.players[0].pieces.human - 1);
-    cell.weapon = null;
-    state.actionMode = { type: "UNTAP_PROD", remaining: 2 };
-    if (!state.players[0].prod.some(slot => slot.rotation >= 90)) finishHumanCardAction(); else render();
-  } else if (mode.type === "ATTACH_WEAPON" && cell.human === 0) {
-    cell.weapon = 0; log("Pistolet équipé sur ton Humain."); finishHumanCardAction();
-  } else if (mode.type === "MOVE_ATTACK") {
-    if (!mode.selectedKey && cell.human === 0) mode.selectedKey = `${q},${r}`;
-    else if (mode.selectedKey) {
-      const [sq, sr] = mode.selectedKey.split(",").map(Number);
-      const dist = (Math.abs(q - sq) + Math.abs(r - sr) + Math.abs(q + r - sq - sr)) / 2;
-      if (dist === 1 && cell.human === null) {
-        const from = state.board.get(mode.selectedKey), weapon = from.weapon;
-        from.human = null; from.weapon = null; cell.human = 0; cell.weapon = weapon;
-        const hasTarget = [...state.board.values()].some(target => target.human !== null && target.human !== 0 && canAttackFrom(cell, target));
-        if (hasTarget) { state.actionMode = { type: "ATTACK_HUMAN", fromKey: `${q},${r}` }; render(); }
-        else finishHumanCardAction();
+  if (mode.type === "DISPLACE_HUMANS") {
+    if (getHumanMoveDestinations(state.board.get(mode.sourceKey)).some(destination => destination.q === q && destination.r === r)) {
+      const owner = mode.queue[0];
+      if (removeHuman(state.board.get(mode.sourceKey), owner)) {
+        addHuman(cell, owner);
+        mode.queue.shift();
+        log(`Un Humain de J${owner} est déplacé vers une case adjacente.`);
+        continueHumanEvacuation(mode, true);
       }
-      else mode.selectedKey = null;
     }
-  } else if (mode.type === "ATTACK_HUMAN" && cell.human !== null && cell.human !== 0) {
-    const origin = mode.fromKey ? state.board.get(mode.fromKey) : null;
-    if (!origin || canAttackFrom(origin, cell)) {
-      const targetPlayer = cell.human;
-      if (cell.weapon !== null) state.players[targetPlayer].pieces.weapon = Math.max(0, state.players[targetPlayer].pieces.weapon - 1);
-      cell.human = null; cell.weapon = null;
-      state.players[targetPlayer].pieces.human = Math.max(0, state.players[targetPlayer].pieces.human - 1);
+  } else if (mode.type === "MOVE_HUMAN") {
+    if (!mode.selectedKey && getHumanOwners(cell).includes(0)) {
+      mode.selectedKey = `${q},${r}`;
+      render();
+      return;
+    }
+    const source = mode.selectedKey ? state.board.get(mode.selectedKey) : null;
+    if (source && getHumanMoveDestinations(source).some(destination => destination.q === q && destination.r === r)) {
+      removeHuman(source, 0);
+      addHuman(cell, 0);
+      log("Tu déplaces un Humain d’une case.");
+      const canShoot = [...state.board.values()].some(tower => tower.weapon === 0 && [...state.board.values()].some(target =>
+        getHumanOwners(target).some(owner => owner !== 0) && hexDistance(tower, target) === 1));
+      if (canShoot) {
+        state.actionMode = { type: "ATTACK_FROM_TOWER" };
+        render();
+        return;
+      }
       finishHumanCardAction();
     }
-  } else if (mode.type === "ATTACK_TOWER" && cell.tower > 0) {
-    cell.tower--; finishHumanCardAction();
+  } else if (mode.type === "SPAWN_HUMAN" && isHumanAllowed(cell) && isAdjacentToPlayerHuman(q, r, 0)) {
+    addHuman(cell, 0); state.players[0].pieces.human++; finishHumanCardAction();
+  } else if (mode.type === "BUILD" && cell.tower < 3 && canEvacuateHumansFrom(cell) && isAdjacentToAnyHuman(cell.q, cell.r)) {
+    const hasHumans = getHumanOwners(cell).length > 0;
+    addTowerPiece(cell, 0); state.players[0].pieces.grid++;
+    if (hasHumans) beginHumanEvacuation(cell); else finishHumanCardAction();
+  } else if (mode.type === "SACRIFICE_HUMAN" && getHumanOwners(cell).includes(0)) {
+    addHumanCorpse(cell, 0);
+    removeHuman(cell, 0); state.players[0].pieces.human = Math.max(0, state.players[0].pieces.human - 1);
+    state.actionMode = { type: "UNTAP_PROD", remaining: 2 };
+    if (!state.players[0].prod.some(slot => slot.rotation >= 90)) finishHumanCardAction(); else render();
+  } else if (mode.type === "PLACE_WEAPON" && cell.weapon === null && canEvacuateHumansFrom(cell) && isAdjacentToPlayerHuman(q, r, 0)) {
+    const hasHumans = getHumanOwners(cell).length > 0;
+    cell.weapon = 0; state.players[0].pieces.weapon++; log("Arme construite sur le plateau.");
+    if (hasHumans) beginHumanEvacuation(cell); else finishHumanCardAction();
+  } else if (mode.type === "ATTACK_FROM_TOWER") {
+    if (!mode.selectedKey && cell.weapon === 0) {
+      mode.selectedKey = `${q},${r}`;
+      render();
+      return;
+    }
+    const targetPlayer = getHumanOwners(cell).find(owner => owner !== 0);
+    if (mode.selectedKey && targetPlayer !== undefined && hexDistance(state.board.get(mode.selectedKey), cell) === 1) {
+      addHumanCorpse(cell, targetPlayer);
+      removeHuman(cell, targetPlayer);
+      state.players[targetPlayer].pieces.human = Math.max(0, state.players[targetPlayer].pieces.human - 1);
+      log(`Attaque depuis la tour : un Humain de ${state.players[targetPlayer].name} est retiré.`);
+      finishHumanCardAction();
+    } else if (cell.weapon === 0) {
+      mode.selectedKey = `${q},${r}`;
+      render();
+      return;
+    }
   }
   render();
+}
+
+function isHumanAllowed(cell) {
+  return !!cell && cell.tower === 0 && cell.weapon === null;
+}
+
+function getHumanMoveDestinations(sourceCell) {
+  if (!sourceCell) return [];
+  return HEX_DIRS
+    .map(direction => state.board.get(`${sourceCell.q + direction.q},${sourceCell.r + direction.r}`))
+    .filter(cell => isHumanAllowed(cell));
+}
+
+function canEvacuateHumansFrom(cell) {
+  return getHumanOwners(cell).length === 0 || getHumanMoveDestinations(cell).length > 0;
+}
+
+function beginHumanEvacuation(cell) {
+  const owners = [...getHumanOwners(cell)];
+  if (!owners.length) { finishHumanCardAction(); return; }
+  owners.sort((a, b) => (a === 0 ? 1 : b === 0 ? -1 : 0));
+  const mode = { type: "DISPLACE_HUMANS", sourceKey: `${cell.q},${cell.r}`, queue: owners };
+  state.actionMode = mode;
+  continueHumanEvacuation(mode, true);
+}
+
+function continueHumanEvacuation(mode, interactive) {
+  const source = state.board.get(mode.sourceKey);
+  while (mode.queue.length) {
+    const owner = mode.queue[0];
+    if (interactive && owner === 0) {
+      state.actionMode = mode;
+      state.phase = "ACTION_RESOLVE";
+      render();
+      return;
+    }
+    const destinations = getHumanMoveDestinations(source);
+    if (!destinations.length) {
+      log(`Aucun déplacement adjacent possible pour J${owner}.`);
+      mode.queue.shift();
+      continue;
+    }
+    destinations.sort((a, b) => getHumanOwners(a).length - getHumanOwners(b).length);
+    const destination = destinations[0];
+    removeHuman(source, owner);
+    addHuman(destination, owner);
+    mode.queue.shift();
+    log(`Un Humain de J${owner} est déplacé vers une case adjacente.`);
+  }
+  if (mode.resumeBotTurn) { checkAllObjectives(); advancePlayer(); }
+  else if (interactive) finishHumanCardAction();
+}
+
+function relocateHumansAutomatically(cell, resumeBotTurn = false) {
+  const mode = { type: "DISPLACE_HUMANS", sourceKey: `${cell.q},${cell.r}`, queue: [...getHumanOwners(cell)], resumeBotTurn };
+  continueHumanEvacuation(mode, resumeBotTurn);
 }
 
 function resolveTrickEnd() {
@@ -592,10 +669,13 @@ function resolveTrickEnd() {
 }
 
 function processDraft() {
-  checkAllObjectives();
   if (state.draftIndex >= 4) { state.objectiveRiver = []; endTrick(); return; }
   const pId = state.draftOrder[state.draftIndex], player = state.players[pId];
   if (player.isBot) {
+    if (player.objectives.length >= 4) {
+      log(`${player.name} a déjà quatre objectifs et ignore la rivière.`);
+      state.draftIndex++; processDraft(); return;
+    }
     const idx = Math.floor(Math.random() * state.objectiveRiver.length), chosen = state.objectiveRiver.splice(idx, 1)[0];
     if (chosen) { player.objectives.push(chosen); state.objectiveDeck = state.objectiveDeck.filter(o => o.id !== chosen.id); }
     state.draftIndex++; processDraft();
@@ -603,44 +683,92 @@ function processDraft() {
 }
 
 function draftObjective(index) {
-  if (state.phase !== "DRAFT" || state.draftOrder[state.draftIndex] !== 0 || !state.objectiveRiver[index]) return;
+  if (state.phase !== "DRAFT" || state.draftOrder[state.draftIndex] !== 0 || state.players[0].objectives.length >= 4 || !state.objectiveRiver[index]) return;
   const chosen = state.objectiveRiver.splice(index, 1)[0];
   state.objectiveDeck = state.objectiveDeck.filter(o => o.id !== chosen.id);
-  state.players[0].objectives.push(chosen); log(`Objectif choisi : ${chosen.text}`);
+  state.players[0].objectives.push(chosen); log("Objectif ajouté à ta main.");
   state.draftIndex++; processDraft();
+}
+
+function skipObjectiveDraft() {
+  if (state.phase !== "DRAFT" || state.draftOrder[state.draftIndex] !== 0 || state.players[0].objectives.length < 4) return;
+  log("Tu as déjà quatre objectifs : tu ignores la rivière.");
+  state.draftIndex++;
+  processDraft();
 }
 
 function endTrick() {
   state.trickCards = [];
-  if (state.trick < 5) { state.trick++; beginTrick(); }
-  else { state.round++; startRound(); }
+  state.phase = "CHECK_OBJECTIVES";
+  log(`— Fin du pli ${state.trick} : vérification des objectifs.`);
+  checkAllObjectives();
+  render();
+}
+
+function continueAfterObjectiveCheck() {
+  if (state.phase !== "CHECK_OBJECTIVES") return;
+  if (state.trick < 5) {
+    state.trick++;
+    beginTrick();
+    return;
+  }
+  if (state.round >= 4) {
+    state.phase = "GAME_OVER";
+    const highScore = Math.max(...state.players.map(player => player.score));
+    const winners = state.players.filter(player => player.score === highScore);
+    log(winners.length === 1
+      ? `${winners[0].name} gagne la partie avec ${highScore} PV.`
+      : `Égalité à ${highScore} PV : ${winners.map(player => player.name).join(", ")}.`);
+    render();
+    return;
+  }
+  state.round++;
+  startRound();
 }
 
 function checkAllObjectives() {
+  if (state.phase !== "CHECK_OBJECTIVES") return;
   state.players.forEach(p => {
     for (let i = p.objectives.length - 1; i >= 0; i--) {
       const obj = p.objectives[i];
-      if (obj.check && obj.check(state.board, p.id)) { p.score += obj.pts; p.objectives.splice(i, 1); log(`${p.name} valide « ${obj.text} » (+${obj.pts} PV).`); }
+      const valid = matchesObjectivePattern(state.board, p.id, obj.pattern);
+      if (valid) { p.score += obj.pts; p.objectives.splice(i, 1); log(`${p.name} valide un motif (+${obj.pts} PV).`); }
     }
   });
 }
 
-function spawnOnRandomHexEdge(pId, kind) {
-  const cells = [...state.board.values()].filter(c => isHexEdge(c.q, c.r) && (kind === "HUMAN" ? c.human === null : c.tower < 3));
-  if (!cells.length) return;
+function spawnOnRandomHexEdge(pId, kind, resumeBotTurn = false) {
+  const cells = [...state.board.values()].filter(c => kind === "HUMAN"
+    ? isHexEdge(c.q, c.r) && isHumanAllowed(c)
+    : c.tower < 3 && canEvacuateHumansFrom(c) && isAdjacentToAnyHuman(c.q, c.r));
+  if (!cells.length) return false;
   const cell = cells[Math.floor(Math.random() * cells.length)];
-  if (kind === "HUMAN") { cell.human = pId; state.players[pId].pieces.human++; } else { cell.tower++; state.players[pId].pieces.grid++; }
+  if (kind === "HUMAN") { addHuman(cell, pId); state.players[pId].pieces.human++; }
+  else { addTowerPiece(cell, pId); state.players[pId].pieces.grid++; relocateHumansAutomatically(cell, resumeBotTurn); }
+  return true;
 }
 
 function isAdjacentToPlayerHuman(q, r, playerId) {
-  return HEX_DIRS.some(direction => state.board.get(`${q + direction.q},${r + direction.r}`)?.human === playerId);
+  return HEX_DIRS.some(direction => getHumanOwners(state.board.get(`${q + direction.q},${r + direction.r}`)).includes(playerId));
+}
+
+function isAdjacentToAnyHuman(q, r) {
+  return HEX_DIRS.some(direction => getHumanOwners(state.board.get(`${q + direction.q},${r + direction.r}`)).length > 0);
+}
+
+function canPlaceGrid() {
+  return [...state.board.values()].some(cell => cell.tower < 3 && canEvacuateHumansFrom(cell) && isAdjacentToAnyHuman(cell.q, cell.r));
+}
+
+function canPlaceWeapon(playerId) {
+  return [...state.board.values()].some(cell => cell.weapon === null && canEvacuateHumansFrom(cell) && isAdjacentToPlayerHuman(cell.q, cell.r, playerId));
 }
 
 function spawnAdjacentHuman(playerId) {
-  const cells = [...state.board.values()].filter(cell => cell.human === null && isAdjacentToPlayerHuman(cell.q, cell.r, playerId));
+  const cells = [...state.board.values()].filter(cell => isHumanAllowed(cell) && isAdjacentToPlayerHuman(cell.q, cell.r, playerId));
   if (!cells.length) return false;
   const cell = cells[Math.floor(Math.random() * cells.length)];
-  cell.human = playerId;
+  addHuman(cell, playerId);
   state.players[playerId].pieces.human++;
   return true;
 }

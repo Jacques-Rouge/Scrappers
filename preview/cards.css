@@ -1,0 +1,50 @@
+@import url("../src/render/cards.css");
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    :root {
+      --tone-energie: #f4a261; --tone-fer: #457b9d; --tone-humain: #40916c;
+      --tone-usine: #e07a5f; --tone-science: #9d4edd;
+    }
+    body { background: #16181d; color: #f0f0f0; padding: 24px; }
+
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px; padding-bottom: 12px; border-bottom: 2px solid #333;
+    }
+    h1 { font-size: 1.3rem; letter-spacing: 0.06em; text-transform: uppercase; font-family: 'Orbitron', 'Barlow Condensed', sans-serif; }
+    .controls { display: flex; gap: 10px; align-items: center; font-size: 0.85rem; color: #bbb; }
+    .export-all-control { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .btn-export-all { padding: 11px 18px; font-size: 1rem; border-width: 3px; background: #ffd166; }
+    .btn-export-all:disabled { opacity: 0.65; cursor: wait; }
+    .export-status { min-height: 1em; color: #ffd166; font-size: 0.75rem; text-align: right; }
+    button {
+      background: #ffd166; color: #111; border: 2px solid #111; padding: 6px 12px;
+      font-weight: 800; border-radius: 4px; cursor: pointer; box-shadow: 2px 2px 0 #000;
+    }
+    button:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #000; }
+
+    .section-title { font-size: 0.9rem; text-transform: uppercase; color: #888; margin: 20px 0 12px; }
+    .term-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 28px; }
+    .term-group { background: #22252d; border: 2px solid #333; border-radius: 8px; padding: 12px; }
+    .term-group h3 { color: #ffd166; font-size: 0.8rem; margin-bottom: 10px; text-transform: uppercase; }
+    .term-item { display: flex; align-items: center; gap: 10px; min-height: 42px; font-size: 0.78rem; color: #ddd; }
+    .term-icon { width: 34px; height: 34px; object-fit: contain; flex: 0 0 34px; }
+    .term-icon.prod, .term-icon.main { width: 56px; flex-basis: 56px; }
+    .keyword { display: inline-flex; align-items: center; gap: 3px; font-weight: 900; white-space: nowrap; }
+    .resource-word { display: inline-flex; align-items: center; justify-content: center; background: #ffd166; border: 1px solid #111; border-radius: 4px; color: #111; font-size: 0.52rem; font-weight: 900; line-height: 1.05; text-align: center; padding: 2px; width: 40px; height: 40px; }
+    .resource-word.inline-icon { width: auto; height: auto; padding: 1px 3px; font-size: 0.55em; }
+    .resource-word.term-icon { width: 34px; height: 34px; flex: 0 0 34px; }
+
+    .cards-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 32px; justify-items: center; padding: 10px 0 40px;
+    }
+    body.single-export { width: 240px; height: 340px; padding: 0; overflow: hidden; background: transparent; }
+    body.single-export > :not(#cards-list) { display: none !important; }
+    body.single-export #cards-list { display: block; width: 240px; height: 340px; margin: 0; padding: 0; }
+    body.single-export .card-wrapper { display: none; }
+    body.single-export .card-wrapper.export-target { display: flex; width: 240px; height: 340px; gap: 0; }
+    body.single-export .card-actions-bar { display: none; }
+    body.single-export .card { width: 240px; height: 340px; box-shadow: none; transform: none; }
+
+    .btn-mini { padding: 3px 8px; font-size: 0.72rem; background: #2b2f3a; color: #fff; border-color: #444; }

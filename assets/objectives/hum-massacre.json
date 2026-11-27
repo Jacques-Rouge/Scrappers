@@ -1,0 +1,20 @@
+{
+  "id": "hum-massacre",
+  "family": "humains",
+  "theme": "humain",
+  "title": "Massacre",
+  "pts": 2,
+  "pattern": {
+    "version": 1,
+    "criterion": "eq",
+    "cells": [
+      {
+        "q": 1,
+        "r": -1,
+        "token": "dead",
+        "owner": "ally",
+        "count": 3
+      }
+    ]
+  }
+}

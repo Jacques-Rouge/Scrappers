@@ -1,0 +1,27 @@
+{
+  "id": "ven-cathedrale",
+  "family": "veneration",
+  "theme": "ressource",
+  "title": "Cathédrale",
+  "pts": 2,
+  "pattern": {
+    "version": 1,
+    "criterion": "sup_eq",
+    "cells": [
+      {
+        "q": 0,
+        "r": 1,
+        "token": "grid",
+        "owner": "ally",
+        "count": 3
+      },
+      {
+        "q": 0,
+        "r": 0,
+        "token": "grid",
+        "owner": "ally",
+        "count": 2
+      }
+    ]
+  }
+}

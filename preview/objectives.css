@@ -1,0 +1,23 @@
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px; color: #eee; background: #16181d; font: 15px 'Segoe UI', sans-serif; }
+header { max-width: 1200px; margin: 0 auto 22px; padding-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 2px solid #333; }
+h1 { margin: 0; color: #ffd166; font: 800 1.25rem Orbitron, sans-serif; text-transform: uppercase; }
+header p { margin: 6px 0 0; color: #aaa; }
+nav { display: flex; gap: 8px; flex-wrap: wrap; }
+a { padding: 8px 12px; color: #17130d; background: #ffd166; border: 2px solid #090a0d; border-radius: 4px; font-weight: 800; text-decoration: none; }
+main { max-width: 1200px; margin: auto; }
+.gallery-toolbar { margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; color: #bbb; }
+.gallery-toolbar select { margin-left: 8px; padding: 6px 10px; color: #eee; background: #2a2f3d; border: 1px solid #555; border-radius: 4px; }
+.objectives-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(550px, 1fr)); gap: 18px; }
+.objective-gallery-item { min-width: 0; padding: 14px; background: #20232b; border: 1px solid #3a3f49; border-radius: 8px; }
+.objective-gallery-item > header { margin: 0 0 12px; padding: 0 0 8px; border-bottom: 1px solid #3a3f49; }
+.objective-gallery-item h2 { margin: 0; color: #ffd166; font: 800 1rem 'Barlow Condensed', sans-serif; text-transform: uppercase; }
+.objective-gallery-views { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: center; }
+.objective-card-face { box-shadow: 2px 3px 0 #090a0d; }
+.ui-preview-label { margin-bottom: 8px; color: #888; font-size: .7rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.ui-preview { padding: 12px; background: #171a20; border: 1px solid #333; border-radius: 6px; }
+.ui-preview .obj-card { max-width: 420px; cursor: default; }
+.family-humains { --objective-ink: #285444; --objective-trim: #83e2b2; }
+.family-guerre { --objective-ink: #694038; --objective-trim: #ffad94; }
+.family-veneration { --objective-ink: #29465a; --objective-trim: #81d3df; }
+@media (max-width: 650px) { body { padding: 14px; } header { align-items: flex-start; flex-direction: column; } .objectives-gallery { grid-template-columns: 1fr; } .objective-gallery-views { grid-template-columns: 1fr; justify-items: center; } .ui-preview { width: 100%; } }

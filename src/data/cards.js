@@ -1,25 +1,22 @@
-// Family-level definitions mirror the five reference cards in preview/cards.html.
-// Keep action IDs stable; the engine resolves their rules separately.
+// Canonical gameplay definitions. Printable-card presentation lives in card-art.js.
 const CARD_TYPES = {
   energie: {
     name: "Énergie", familyName: "ÉNERGIE", prodSymbols: ["ÉN", "ÉN"], badge: null,
     leftBadges: ["energie"], rightBadges: ["energie"],
     normalActions: [
       { id: "production_tap" },
-      { id: "move_combat" },
+      { id: "move_and_shoot" },
     ],
     secretActions: [],
-    previewTokens: [{ icon: "prod" }, { icon: "tap" }, { divider: true }, { text: "Déplacement et Combat" }],
   },
   ressource: {
     name: "Fer", familyName: "FER", prodSymbols: ["FER", "FER"], badge: null,
     leftBadges: ["fer"], rightBadges: ["fer"],
     normalActions: [
       { id: "production_tap" },
-      { id: "move_combat" },
+      { id: "move_and_shoot" },
     ],
     secretActions: [],
-    previewTokens: [{ icon: "prod" }, { icon: "tap" }, { divider: true }, { text: "Déplacement et Combat" }],
   },
   humain: {
     name: "Humain", familyName: "HUMAIN", prodSymbols: ["ÉN"], badge: "👤",
@@ -29,10 +26,6 @@ const CARD_TYPES = {
       { id: "sacrifice_human_untap_two", cost: { piece: "human", amount: 1 }, result: { action: "untap", amount: 2 } },
     ],
     secretActions: [],
-    previewTokens: [
-      { icon: "fer" }, { choice: true }, { icon: "energie" }, { colon: true }, { icon: "tokenHumain" }, { text: "." },
-      { divider: true }, { text: "retire " }, { icon: "tokenHumain" }, { text: " : " }, { icon: "untap" }, { icon: "untap" }, { text: "." },
-    ],
   },
   construction: {
     name: "Usine", familyName: "USINE", prodSymbols: ["FER"], badge: "🏛️",
@@ -42,10 +35,6 @@ const CARD_TYPES = {
       { id: "pay_energy_and_fer_create_weapon", cost: { all: ["energie", "fer"] }, result: { action: "create_weapon" } },
     ],
     secretActions: [],
-    previewTokens: [
-      { icon: "energie" }, { icon: "fer" }, { colon: true }, { icon: "tokenPlaque" }, { text: "." },
-      { divider: true }, { icon: "energie" }, { icon: "fer" }, { colon: true }, { icon: "tokenArme" }, { text: "." },
-    ],
   },
   science: {
     name: "Science", familyName: "SCIENCE", prodSymbols: ["ÉN/FER"], badge: "🔬",
@@ -58,11 +47,6 @@ const CARD_TYPES = {
       ] },
     ],
     secretActions: [],
-    previewTokens: [
-      { icon: "science" }, { text: " : " }, { icon: "prod" }, { br: true },
-      { icon: "usine" }, { text: " : " }, { icon: "swap" }, { icon: "prod" }, { br: true },
-      { icon: "humain" }, { text: " : " }, { icon: "main" },
-    ],
   },
 };
 
@@ -81,8 +65,6 @@ function createCard(type, value, id = `${type}-${value}`) {
     rightBadges: JSON.parse(JSON.stringify(variant.rightBadges ?? family.rightBadges)),
     normalActions: JSON.parse(JSON.stringify(variant.normalActions ?? family.normalActions)),
     secretActions: JSON.parse(JSON.stringify(variant.secretActions ?? family.secretActions)),
-    previewTokens: JSON.parse(JSON.stringify(variant.previewTokens ?? family.previewTokens)),
-    secretPreviewTokens: JSON.parse(JSON.stringify(variant.secretPreviewTokens ?? family.secretPreviewTokens ?? [])),
   };
 }
 

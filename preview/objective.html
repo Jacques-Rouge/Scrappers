@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ferrailleurs — Aperçu des objectifs</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=Barlow+Condensed:wght@800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="objective.css">
+  <link rel="stylesheet" href="../src/render/objectives.css">
+</head>
+<body>
+  <header>
+    <h1>Ferrailleurs — Cartes Objectif</h1>
+    <p>Maquette des cartes objectifs et de leurs sculptures hexagonales.</p>
+    <a href="objectives.html">Aperçu de tous les objectifs</a>
+  </header>
+
+  <main class="workspace">
+    <article class="objective-card" data-theme="humain" aria-label="Aperçu de carte objectif">
+      <div class="card-heading">
+        <img class="criterion-image" id="criterion-image" src="../assets/divers/div_eq.png" alt="Quantité exacte">
+        <input class="card-title" aria-label="Titre de l’objectif" value="La sentinelle" maxlength="28">
+        <div class="points-wrap">
+          <img class="points-image" id="points-image" src="../assets/numbers/num_2.png" alt="2 points de victoire">
+          <select class="points-picker" id="points-picker" aria-label="Points de victoire">
+            <option value="1">1 point</option><option value="2" selected>2 points</option><option value="3">3 points</option>
+            <option value="4">4 points</option><option value="5">5 points</option><option value="6">6 points</option>
+          </select>
+        </div>
+      </div>
+      <div class="illustration"><span>Placeholder illustration</span></div>
+      <svg class="sculpture" id="objective-map" viewBox="0 0 832 590" role="group" aria-label="Motif objectif en ruche de 8 hexagones"></svg>
+    </article>
+
+    <aside class="editor">
+      <h2>Composer la sculpture</h2>
+      <span class="editor-label">Famille d’objectif</span>
+      <div class="settings-row">
+        <select id="objective-family" aria-label="Famille d’objectif">
+          <option value="humains">Humains · vert</option>
+          <option value="guerre">Guerre · usine rouge</option>
+          <option value="veneration">Vénération · écrous bleus</option>
+        </select>
+      </div>
+      <button class="randomize-button" id="randomize-objective" type="button">Générer un objectif aléatoire</button>
+      <p>Le motif généré est exporté en JSON avec le PNG, dans le format lu par le moteur.</p>
+      <span class="editor-label">Couleur d’accent</span>
+      <div class="theme-picker" aria-label="Couleur d’accent de la carte">
+        <button class="theme-choice" data-theme="energie" aria-label="Énergie"><span class="theme-swatch swatch-energie"></span><span>Énergie</span></button>
+        <button class="theme-choice" data-theme="ressource" aria-label="Fer"><span class="theme-swatch swatch-ressource"></span><span>Fer</span></button>
+        <button class="theme-choice active" data-theme="humain" aria-label="Humain"><span class="theme-swatch swatch-humain"></span><span>Humain</span></button>
+        <button class="theme-choice" data-theme="construction" aria-label="Usine"><span class="theme-swatch swatch-construction"></span><span>Usine</span></button>
+        <button class="theme-choice" data-theme="science" aria-label="Science"><span class="theme-swatch swatch-science"></span><span>Science</span></button>
+      </div>
+      <p>Choisis un objet, son propriétaire et une quantité, puis clique sur un hexagone. Une case peut montrer les deux camps.</p>
+      <span class="editor-label">Combinaison de cases (2 × 4)</span>
+      <p>Clique les cases à inclure. Le motif se recentre automatiquement sur la carte.</p>
+      <svg class="layout-picker" id="layout-picker" viewBox="0 0 832 590" role="group" aria-label="Choisir la combinaison d’hexagones"></svg>
+
+      <span class="editor-label">Relation des quantités</span>
+      <div class="criterion-select">
+        <button class="active" data-criterion="eq"><img src="../assets/divers/div_eq.png" alt=""><span>Exactement</span></button>
+        <button data-criterion="sup_eq"><img src="../assets/divers/div_sup_eq.png" alt=""><span>Au moins</span></button>
+      </div>
+
+      <span class="editor-label">Objet à placer</span>
+      <div class="palette" role="toolbar" aria-label="Objets à placer">
+        <button class="tool active" data-token="grid" data-label="Étoile"><img src="../assets/token/token_grid.png" alt=""><span>Grille / étoile</span></button>
+        <button class="tool" data-token="gun" data-label="Fort"><img src="../assets/token/token_gun.png" alt=""><span>Fort</span></button>
+        <button class="tool" data-token="human" data-label="Humain vivant"><img src="../assets/token/token_human.png" alt=""><span>Humain vivant</span></button>
+        <button class="tool" data-token="dead" data-label="Humain mort"><img src="../assets/token/token_human_dead.png" alt=""><span>Humain mort</span></button>
+        <button class="tool clear" data-token="clear">Effacer la case sélectionnée</button>
+      </div>
+
+      <span class="editor-label">Propriétaire</span>
+      <div class="owner-select" aria-label="Propriétaire de l’objet">
+        <button class="active" data-owner="ally">Allié</button>
+        <button data-owner="enemy">Ennemi</button>
+      </div>
+
+      <span class="editor-label">Quantité d’objets dans l’hexagone</span>
+      <div class="settings-row">
+        <input id="quantity" type="number" min="1" max="6" value="1" aria-label="Quantité">
+        <select id="points-control" aria-label="Points de victoire">
+          <option value="1">1 point</option><option value="2" selected>2 points</option><option value="3">3 points</option>
+          <option value="4">4 points</option><option value="5">5 points</option><option value="6">6 points</option>
+        </select>
+      </div>
+      <p class="hint">Le nombre transparent indique le camp : vert pour allié, rouge pour ennemi. Une case peut porter les deux nombres.</p>
+      <button class="export-button" id="export-png" type="button">Enregistrer le PNG dans assets/objectives</button>
+      <p class="export-status" id="export-status" aria-live="polite">Au sélecteur, choisis le dossier racine BoardGame pour enregistrer directement dans assets/objectives.</p>
+    </aside>
+  </main>
+
+  <section class="batch-workbench" aria-labelledby="batch-title">
+    <h2 id="batch-title">Atelier d’idées d’objectifs</h2>
+    <p>Génère une série, annote les pistes, coche celles à garder, puis exporte leurs définitions et le catalogue du jeu.</p>
+    <div class="batch-controls">
+      <label>Nombre <input id="batch-size" type="number" min="1" max="60" value="30"></label>
+      <button class="randomize-button" id="generate-batch" type="button">Générer la série</button>
+      <button class="batch-secondary" id="select-all-ideas" type="button">Tout garder</button>
+      <button class="batch-secondary" id="clear-ideas" type="button">Tout décocher</button>
+      <button class="export-button" id="export-batch" type="button">Exporter la sélection en code local</button>
+    </div>
+    <p class="export-status" id="batch-status" aria-live="polite">Les idées restent dans cette page jusqu’à l’export. L’annotation est conservée dans le champ « text » du code objectif.</p>
+    <div class="idea-grid" id="idea-grid"></div>
+  </section>
+
+  <script src="../src/render/common.js"></script>
+  <script src="../src/render/objective-renderer.js"></script>
+  <script src="../src/data/objective-schema.js"></script>
+  <script src="objective.js"></script>
+
+</body>
+</html>

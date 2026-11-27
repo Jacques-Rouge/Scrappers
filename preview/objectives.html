@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ferrailleurs — Galerie des objectifs</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=Barlow+Condensed:wght@800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../src/render/objectives.css">
+  <link rel="stylesheet" href="objectives.css">
+</head>
+<body>
+  <header>
+    <div><h1>Ferrailleurs — Objectifs</h1><p>Chaque définition du jeu, rendue dans le format carte et dans le format UI.</p></div>
+    <nav><a href="objective.html">Construire un objectif</a><a href="cards.html">Aperçu des cartes</a></nav>
+  </header>
+  <main>
+    <div class="gallery-toolbar"><strong id="objective-count"></strong><label>Famille <select id="family-filter"><option value="all">Toutes</option><option value="humains">Humains</option><option value="guerre">Guerre</option><option value="veneration">Vénération</option></select></label></div>
+    <div id="objectives-gallery" class="objectives-gallery"></div>
+  </main>
+  <script src="../src/render/common.js"></script>
+  <script src="../src/data/objective-schema.js"></script>
+  <script src="../src/data/objectives.js"></script>
+  <script src="../assets/objectives/catalog.js"></script>
+  <script src="../src/render/objective-renderer.js"></script>
+  <script src="objectives-gallery.js"></script>
+</body>
+</html>
